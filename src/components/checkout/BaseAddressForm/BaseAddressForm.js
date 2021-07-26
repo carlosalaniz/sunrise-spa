@@ -60,6 +60,7 @@ export default {
       city: { required },
       country: { required },
       phone: {},
+      region:{required},
       email: { required, email },
     },
   },
