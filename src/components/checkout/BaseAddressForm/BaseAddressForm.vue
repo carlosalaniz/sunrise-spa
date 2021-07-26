@@ -54,7 +54,7 @@
         />
       </div>
     </div>
-    <div class="col-lg-6 col-md-6">
+    <div class="col-lg-4 col-md-4">
       <div class="billing-info mb-25">
         <label>
           {{ $t('postCode') }}
@@ -68,7 +68,21 @@
         />
       </div>
     </div>
-    <div class="col-lg-6 col-md-6">
+    <div class="col-lg-4 col-md-4">
+      <div class="billing-info mb-25">
+        <label>
+          {{ $t('region') }}
+          <abbr class="required" title="required">*</abbr>
+        </label>
+        <input
+          :vuelidate="$v.form.region"
+          v-model="form.region"
+          type="text"
+          data-test="address-form-region"
+        />
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-4">
       <div class="billing-info mb-25">
         <label>
           {{ $t('city') }}
@@ -81,7 +95,7 @@
         />
       </div>
     </div>
-    <div class="col-lg-12" style="display:none">
+    <div class="col-lg-12">
       <div class="billing-select mb-25">
         <label>
           {{ $t('country') }}

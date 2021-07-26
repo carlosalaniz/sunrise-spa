@@ -39,11 +39,15 @@ export default {
     paymentid: null,
   }),
   methods: {
-    cardPaid(paymentid) {
+    cardPaid(paymentid, actions) {
       if (paymentid) {
         this.paymentid = paymentid;
+        if (process.env.VUE_APP_USE_CYBERSOURCE) {
+          this.$emit("complete-order", this.paymentid, actions);
+        } else {
+          this.paid = true;
+        }
       }
-      this.paid = true;
     },
     totalPrice,
     updateShippingMethod(shippingId) {
@@ -51,7 +55,9 @@ export default {
       this.$apollo.queries.me.refresh();
     },
     placeOrder() {
-      this.$emit("complete-order", this.paymentid);
+      if (!process.env.VUE_APP_USE_CYBERSOURCE) {
+        this.$emit("complete-order", this.paymentid);
+      }
     },
     nameFromLineItem(lineItem) {
       const attributes = variantAttributes(
