@@ -5,6 +5,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "start": "vue-cli-service serve",
+    "serveExternal": "vue-cli-service serve --host 0.0.0.0",
     "build": "vue-cli-service build",
     "lint": "eslint \"./src/**/*.js\" && eslint --config ./.lintgql.js \"./src/**/*.gql\"",
     "test:unit": "vue-cli-service test:unit",
@@ -26,6 +27,7 @@
     "axios": "^0.21.0",
     "babel-loader": "^8.1.0",
     "graphql-tag": "^2.11.0",
+    "jwt-decode": "^3.1.2",
     "lodash.debounce": "^4.0.8",
     "lodash.flatmap": "^4.5.0",
     "lodash.isequal": "^4.5.0",

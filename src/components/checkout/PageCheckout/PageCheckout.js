@@ -41,7 +41,7 @@ export default {
     updateShippingMethod(shippingId) {
       this.shippingMethod = shippingId;
     },
-    placeOrder(paymentid) {
+    placeOrder(paymentid, actions) {
       if (this.validBillingForm && this.validShippingForm) {
         this.updateMyCart([
           {
@@ -83,15 +83,28 @@ export default {
             }
             return result;
           })
+          .then((result) => new Promise((resolve) => {
+            if (actions && actions.beforeCompleteAsync) {
+              actions.beforeCompleteAsync().then(() => resolve(result));
+            } else {
+              resolve(result);
+            }
+          }))
           .then((result) => {
             this.me.activeCart = result.data.updateMyCart;
             return this.createMyOrder();
           })
           .then(() => {
             this.orderComplete = true;
+            if (actions && actions.afterComplete) {
+              actions.afterComplete();
+            }
           });
       } else {
         this.showError = true;
+        if (actions && actions.onValidationError) {
+          actions.onValidationError();
+        }
       }
     },
   },

@@ -4,6 +4,7 @@ fragment AddressFields on Address {
   streetName
   additionalStreetInfo
   postalCode
+  region
   city
   country
   phone
