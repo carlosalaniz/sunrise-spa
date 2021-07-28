@@ -5,9 +5,13 @@ import flexApi from "./flex.api";
 import flexStyle from "./FlexMicroformStyle";
 
 const FlexSourceURL = 'https://flex.cybersource.com/cybersource/assets/microform/0.11/flex-microform.min.js';
+const VisaChktURL =
+  'https://sandbox-assets.secure.checkout.visa.com/checkout-widget/resources/js/integration/v1/sdk.js';
 const PaymentInterface = process.env.VUE_APP_CYBERSOURCE_INTEGRATION;
 const PaymentInterfaceType = process.env.VUE_APP_CYBERSOURCE_INTEGRATION_TYPE;
-
+const VisaCheckoutApiKey = process.env.VUE_APP_VISA_CHECKOUT_API_KEY;
+// eslint-disable-next-line no-unused-vars
+var CallId = null;
 
 const createPaymentAsync = async function (paymentDto) {
   return await payments.create(paymentDto);
@@ -23,12 +27,18 @@ export default {
     error: null,
     loading: false,
     PaymentMethods: {
-      showing: "flexMicroform",
+      showing: "visaCheckout",
       flexMicroform: {
-        show: true,
+        show: false,
         flexMicroFormObject: null,
         captureContext: null,
         jsLoaded: false
+      },
+      visaCheckout: {
+        show: true,
+        paymentMethodName: "visaCheckout",
+        jsLoaded: false,
+        visaCallId: null
       }
     },
   }),
@@ -37,7 +47,6 @@ export default {
       // hide current payment
       const currentPayMethod = this.PaymentMethods.showing;
       this.PaymentMethods[currentPayMethod].show = false;
-
       //show new one
       const newPaymentMethod = event.target.value;
       await this.renderPaymentMethod(newPaymentMethod);
@@ -50,6 +59,11 @@ export default {
           this.PaymentMethods["flexMicroform"].show = true;
           await this.renderFlex();
           break;
+        case "visaCheckout":
+          // alert("visaCheckout");
+          this.PaymentMethods.showing = "visaCheckout";
+          this.PaymentMethods.visaCheckout.show = true;
+          await this.renderVisaChkt();
       }
     },
 
@@ -87,8 +101,65 @@ export default {
       this.PaymentMethods.flexMicroform.flexMicroFormObject = flexMicroform;
       this.PaymentMethods.flexMicroform.verificationContext = verificationContext;
     },
+    async appendVisaChktJS() {
+      if (!this.PaymentMethods.visaCheckout.jsLoaded) {
+        this.PaymentMethods.visaCheckout.jsLoaded = new Promise(function (resolve, reject) {
+          const visaChktScript = document.createElement('script');
+          visaChktScript.setAttribute('src', VisaChktURL);
+          visaChktScript.onload = function () {
+            resolve(true);
+          };
+          visaChktScript.onerror = function (event) {
+            reject(event);
+          };
+          document.head.appendChild(visaChktScript);
+        });
+      }
+      return this.PaymentMethods.visaCheckout.jsLoaded;
+    },
+    async renderVisaChkt() {
+      await this.appendVisaChktJS();
+      // alert("loaded");
+      await this.onVisaCheckoutReady();
+    },
 
+    async onVisaCheckoutReady() {
+      var thisContext = this;
+      thisContext.error = null;
+      // V is defined through renderVisaChkt()
+      // eslint-disable-next-line no-undef
+      V.init({
+        apikey: VisaCheckoutApiKey,
+        paymentRequest: {
+          currencyCode: this.amount.currencyCode,
+          subtotal: this.amount.centAmount
+        },
+        /* settings: {
+          shipping: {
+              collectShipping: "${vcShippingEnabled}",
+              acceptedRegions: ["GB", "US", "DE"]
+          }
+        } */
+      });
 
+      // eslint-disable-next-line no-undef
+      V.on("payment.success", function (payment) {
+        thisContext.PaymentMethods.visaCheckout.visaCallId = payment.callid;
+        thisContext.placeOrder();
+      });
+      // eslint-disable-next-line no-undef
+      V.on("payment.cancel", function (payment) {
+        console.log(payment);
+        thisContext.error = "You have cancelled the payment using Visa Checkout";
+        return;
+      });
+      // eslint-disable-next-line no-undef
+      V.on("payment.error", function (payment, error) {
+        console.log("VC error:", payment, error);
+        thisContext.error = "VC error:"+JSON.stringify(error);
+        return;
+      });
+    },
     async placeOrder() {
       this.error = null;
       let paymentData = {
@@ -108,6 +179,17 @@ export default {
           try {
             const customFields = await this.prepareFlexMicroformPaymentFields();
             paymentData.paymentMethodInfo.method = 'creditCard';
+            paymentData.custom = customFields;
+          } catch (e) {
+            this.error = JSON.stringify(e);
+            return;
+          }
+          break;
+        }
+        case "visaCheckout": {
+          try {
+            const customFields = await this.prepareVisaCheckoutPaymentFields();
+            paymentData.paymentMethodInfo.method = 'visaCheckout';
             paymentData.custom = customFields;
           } catch (e) {
             this.error = JSON.stringify(e);
@@ -189,11 +271,31 @@ export default {
           }
         });
       })
-    }
+    },
+    async prepareVisaCheckoutPaymentFields() {
+      return new Promise((resolve, reject) => {
+        var visaChktCallId = this.PaymentMethods.visaCheckout.visaCallId;
+        try {
+          const paymentCustomFields =
+          {
+            type: {
+              key: PaymentInterfaceType
+            },
+            fields: {
+              isv_token: visaChktCallId
+            }
+          }
+          resolve(paymentCustomFields);
+        } catch (e) {
+          reject(e);
+        }
+      })
+    },
   },
 
   async mounted() {
-    await this.renderPaymentMethod(this.PaymentMethods.showing);
+    await this.renderPaymentMethod("this.PaymentMethods.showing");
+    //await this.renderVisaChkt();
   },
   updated: function () {
   },

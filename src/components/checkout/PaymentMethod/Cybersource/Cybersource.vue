@@ -72,16 +72,35 @@
               </div>
             </div>
           </form>
+          <button @click="placeOrder" class="next-place-order">
+        {{ $t("placeOrder") }}
+      </button>
         </div>
-        <div v-show="error!=null">
-          <div class="error-message" style="color: red">
-            {{ error }}
-          </div>
-        </div>
-        <button @click="placeOrder" class="next-place-order">
-          {{ $t("placeOrder") }}
-        </button>
       </div>
     </div>
+    <div class="payment-method">
+      <div class="pay-top sin-payment">
+        <input
+          id="payment-method-4"
+          v-model="PaymentMethods.visaCheckout.paymentMethodName"
+          class="input-radio"
+          type="radio"
+          value="visaCheckout"
+          name="payment_method"
+          @change="onPaymentMethodChange($event)"
+        />
+        <label for="payment-method-3">Visa checkout</label>
+        <div v-show="PaymentMethods.visaCheckout.show">
+          <img alt="Visa Checkout" class="v-button" role="button"
+            src="https://sandbox.secure.checkout.visa.com/wallet-services-web/xo/button.png"/>
+        </div>
+      </div>
+    </div>
+    <div v-show="error!=null">
+      <div class="error-message" style="color: red">
+        {{ error }}
+      </div>
+    </div>
+    
   </span>
 </template>
