@@ -85,7 +85,8 @@ export default {
           })
           .then((result) => new Promise((resolve) => {
             if (actions && actions.beforeCompleteAsync) {
-              actions.beforeCompleteAsync().then(() => resolve(result));
+              actions.beforeCompleteAsync(result)
+                .then((updatedResult) => resolve(updatedResult));
             } else {
               resolve(result);
             }
