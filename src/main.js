@@ -17,6 +17,7 @@ import './registerServiceWorker';
 import './assets/scss/main.scss';
 import { locale } from './components/common/shared';
 import VueCompositionAPI from '@vue/composition-api'
+import cors from "cors";
 
 Vue.config.productionTip = false;
 
@@ -33,6 +34,7 @@ Vue.use(VModal);
 Vue.use(Vuelidate);
 Vue.use(ProductZoomer);
 Vue.use(VueCompositionAPI);
+Vue.use(cors);
 Vue.directive('vpshow', {
   /* eslint-disable no-param-reassign */
   bind(el, binding) {

@@ -1,17 +1,23 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable no-console */
 import jwt_decode from "jwt-decode";
 import payments from "./payments.api";
 import flexApi from "./flex.api";
 import cartApi from "./cart.api";
 import flexStyle from "./FlexMicroformStyle";
+import jwtApi from "./jwt.api";
+import cartMixin from "../../../../mixins/cartMixin";
 
 const FlexSourceURL = 'https://flex.cybersource.com/cybersource/assets/microform/0.11/flex-microform.min.js';
 const VisaChktURL =
   'https://sandbox-assets.secure.checkout.visa.com/checkout-widget/resources/js/integration/v1/sdk.js';
+const SongBirdURL = "https://songbirdstag.cardinalcommerce.com/edge/v1/songbird.js";
 const PaymentInterface = process.env.VUE_APP_CYBERSOURCE_INTEGRATION;
 const PaymentInterfaceType = process.env.VUE_APP_CYBERSOURCE_INTEGRATION_TYPE;
 const VisaCheckoutApiKey = process.env.VUE_APP_VISA_CHECKOUT_API_KEY;
-
+//const PayerAuthenticationFlag = process.env.VUE_APP_USE_PAYER_AUTHENTICATION;
+const PayerAuthenticationFlag = true;
+//var cartobj = await cartApi.get(result.data);
 const createPaymentAsync = async function (paymentDto) {
   return await payments.create(paymentDto);
 }
@@ -22,6 +28,7 @@ export default {
   },
   watch: {
   },
+  mixins: [cartMixin],
   data: () => ({
     error: null,
     loading: false,
@@ -30,11 +37,18 @@ export default {
       flexMicroform: {
         flexMicroFormObject: null,
         captureContext: null,
-        jsLoaded: false
+        jsLoaded: false,
+        verificationContext: null,
       },
       visaCheckout: {
         jsLoaded: false,
         visaCallId: null
+      },
+      payerAuthentication: {
+        jsLoaded: false,
+        cardinalRequestJwt: null,
+        isvToken: null,
+        generatedJWT: null
       }
     },
   }),
@@ -72,6 +86,9 @@ export default {
     },
 
     async renderFlex() {
+      if (PayerAuthenticationFlag) {
+        await this.callPayerAuthentication();
+      }
       await this.appendFlexJS();
       const flexContext = await flexApi.getFlexContext();
       const captureContext = flexContext.captureContext;
@@ -137,8 +154,63 @@ export default {
       });
     },
 
+    async appendSongBirdJS() {
+      if (!this.PaymentMethods.payerAuthentication.jsLoaded) {
+        this.PaymentMethods.payerAuthentication.jsLoaded = new Promise(function (resolve, reject) {
+          const songBirdScript = document.createElement('script');
+          songBirdScript.setAttribute('src', SongBirdURL);
+          songBirdScript.onload = function () {
+            resolve(true);
+          };
+          songBirdScript.onerror = function (event) {
+            reject(event);
+          };
+          document.head.appendChild(songBirdScript);
+        });
+      }
+      return this.PaymentMethods.payerAuthentication.jsLoaded;
+    },
+
+    async callPayerAuthentication() {
+      var jwtGeneratedToken = await jwtApi.getJWTContext();
+      this.PaymentMethods.payerAuthentication.generatedJWT = jwtGeneratedToken;
+      const context = this;
+      await this.appendSongBirdJS();
+      return new Promise(function (resolve, reject) {
+        // eslint-disable-next-line no-undef
+        Cardinal.configure({
+          logging: {
+            level: "on"
+          }
+        });
+        // eslint-disable-next-line no-undef
+        Cardinal.setup("init", {
+          jwt: jwtGeneratedToken
+        });
+        // eslint-disable-next-line no-undef
+        Cardinal.on("payments.validated", function (data, jwt) {
+          switch (data.ErrorNumber) {
+            case 0:
+              console.log("Payment card was validated");
+              context.PaymentMethods.payerAuthentication.cardinalRequestJwt = jwt;
+              break;
+
+            default:
+              alert('Payment card was not validated');
+              break;
+          }
+        });
+        // eslint-disable-next-line no-undef
+        Cardinal.on('payments.setupComplete', function (setupCompleteData) {
+          resolve(true);
+        });
+
+      });
+    },
+
     async placeOrder() {
       this.error = null;
+      var flexData = null;
       let paymentData = {
         amountPlanned: {
           currencyCode: this.amount.currencyCode,
@@ -154,9 +226,16 @@ export default {
       switch (currentPayMethod) {
         case "flexMicroform": {
           try {
-            const flexCustomFields = await this.prepareFlexMicroformPaymentFields();
-            paymentData.paymentMethodInfo.method = 'creditCard';
-            paymentData.custom = flexCustomFields;
+            if (PayerAuthenticationFlag) {
+              flexData = await this.getCardNumber();
+              paymentData.paymentMethodInfo.method = 'creditCardWithPayerAuthentication';
+              paymentData.custom = await this.cardinalTriggerBinProcess(flexData);
+              await this.setCartBillingAddress();
+            } else {
+              const flexCustomFields = await this.prepareFlexMicroformPaymentFields();
+              paymentData.paymentMethodInfo.method = 'creditCard';
+              paymentData.custom = flexCustomFields;
+            }
           } catch (e) {
             this.error = JSON.stringify(e);
             return;
@@ -181,6 +260,23 @@ export default {
       oldPayment?.id && payments.delete(oldPayment)
       const payment = await createPaymentAsync(paymentData);
       this.$store.dispatch("setPayment", payment);
+      var payerAuthenticationRequired = payment.payerAuthenticationRequired;
+      if (PayerAuthenticationFlag && payerAuthenticationRequired) {
+        var acsUrl = payment.acsUrl;
+        var payload = payment.paReq;
+        var transactionId = payment.payerAuthenticationTransactionId;
+        // eslint-disable-next-line no-undef
+        Cardinal.continue('cca',
+          {
+            "AcsUrl": acsUrl,
+            "Payload": payload
+          },
+          {
+            "OrderDetails": {
+              "TransactionId": transactionId
+            }
+          });
+      }
       this.loading = true;
       var cybersourceContext = this;
       this.$emit("card-paid", payment.id,
@@ -217,6 +313,94 @@ export default {
           }
         }
       );
+    },
+
+    async setCartBillingAddress() {
+      /* eslint no-underscore-dangle: ["error", { "allow": ["__vue__"] }]*/
+      if (document.querySelector(".checkout-main-area").parentElement.__vue__.validBillingForm) {
+        var address = document.querySelector(".checkout-main-area").parentElement.__vue__.billingAddress;
+        var billingAddress = {
+          firstName: address.firstName,
+          lastName: address.lastName,
+          streetName: address.streetName,
+          city: address.city,
+          postalCode: address.postalCode,
+          region: address.region,
+          country: address.country,
+          email: address.email
+        };
+        return this.updateMyCart([
+          {
+            setBillingAddress: {
+              address: billingAddress,
+            }
+          }
+        ]);
+      }
+    },
+
+    getCardNumber() {
+      return new Promise((resolve, reject) => {
+        var microform = this.PaymentMethods.flexMicroform.flexMicroFormObject;
+        var options = {
+          expirationMonth: document.querySelector('#expMonth').value,
+          expirationYear: document.querySelector('#expYear').value
+        };
+        microform.createToken(options, (err, jwtToken) => {
+          if (err) {
+            reject(err.message);
+          } else {
+            try {
+              this.PaymentMethods.payerAuthentication.isvToken = jwtToken;
+              const flexData = jwt_decode(jwtToken);
+              resolve(flexData);
+            } catch (e) {
+              reject(e);
+            }
+          }
+        });
+      })
+    },
+
+    async cardinalTriggerBinProcess(flexData) {
+      var isvToken = this.PaymentMethods.payerAuthentication.isvToken;
+      const verificationContext = this.PaymentMethods.flexMicroform.verificationContext;
+      var requestJWT = this.PaymentMethods.payerAuthentication.generatedJWT;
+      return new Promise((resolve, reject) => {
+        var cardPrefix = cardPrefix = flexData.data.number.substring(0, 6);
+        // eslint-disable-next-line no-undef
+        Cardinal.trigger("bin.process", cardPrefix)
+          .then(function (results) {
+            console.log("Response for bin.process " + JSON.stringify(results));
+            if (results.Status) {
+
+              var paymentCustomFields =
+              {
+                type: {
+                  key: PaymentInterfaceType
+                },
+                fields: {
+                  isv_token: isvToken,
+                  isv_tokenVerificationContext: verificationContext,
+                  isv_maskedPan: flexData.data.number,
+                  isv_cardType: flexData.data.type,
+                  isv_cardExpiryMonth: flexData.data.expirationMonth,
+                  isv_cardExpiryYear: flexData.data.expirationYear,
+                  isv_requestJwt: requestJWT,
+                  isv_acceptHeader: "*/*",
+                  isv_userAgentHeader:
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:69.0) Gecko/20100101 Firefox/69.0",
+                }
+              }
+              resolve(paymentCustomFields);
+            }
+          })
+          .catch(function (error) {
+            console.log("An error occurred during profiling");
+            console.log(error);
+            reject(error);
+          });
+      });
     },
 
     prepareFlexMicroformPaymentFields() {
