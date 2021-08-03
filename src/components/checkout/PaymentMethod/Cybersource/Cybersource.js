@@ -467,5 +467,3 @@ export default {
   updated: function () {
   },
 };
-
-
