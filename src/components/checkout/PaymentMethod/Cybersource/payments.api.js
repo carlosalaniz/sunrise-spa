@@ -51,6 +51,25 @@ const myPayments = {
         }),
       })
   ),
+  updatePayment: withToken(
+    ({ id, version, JWT }, accessToken) =>
+      fetchJson(`${baseUrl}/payments/${id}`, {
+        ...makeConfig(accessToken),
+        method: "POST",
+        body: JSON.stringify({
+          version,
+          actions: [
+            {
+              action: "setCustomField",
+              name: "isv_responseJWT",
+              value: JSON.stringify({
+                JWT
+              }),
+            },
+          ],
+        }),
+      })
+  ),
 };
 
 export default myPayments;

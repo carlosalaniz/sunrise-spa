@@ -17,7 +17,6 @@ const PaymentInterfaceType = process.env.VUE_APP_CYBERSOURCE_INTEGRATION_TYPE;
 const VisaCheckoutApiKey = process.env.VUE_APP_VISA_CHECKOUT_API_KEY;
 //const PayerAuthenticationFlag = process.env.VUE_APP_USE_PAYER_AUTHENTICATION;
 const PayerAuthenticationFlag = true;
-//var cartobj = await cartApi.get(result.data);
 const createPaymentAsync = async function (paymentDto) {
   return await payments.create(paymentDto);
 }
@@ -188,19 +187,6 @@ export default {
           jwt: jwtGeneratedToken
         });
         // eslint-disable-next-line no-undef
-        Cardinal.on("payments.validated", function (data, jwt) {
-          switch (data.ErrorNumber) {
-            case 0:
-              console.log("Payment card was validated");
-              context.PaymentMethods.payerAuthentication.cardinalRequestJwt = jwt;
-              break;
-
-            default:
-              alert('Payment card was not validated');
-              break;
-          }
-        });
-        // eslint-disable-next-line no-undef
         Cardinal.on('payments.setupComplete', function (setupCompleteData) {
           resolve(true);
         });
@@ -258,13 +244,13 @@ export default {
       }
       const oldPayment = this.$store.state.payment;
       oldPayment?.id && payments.delete(oldPayment)
-      const payment = await createPaymentAsync(paymentData);
+      const payment = await createPaymentAsync(paymentData);   
       this.$store.dispatch("setPayment", payment);
-      var payerAuthenticationRequired = payment.payerAuthenticationRequired;
-      if (PayerAuthenticationFlag && payerAuthenticationRequired) {
-        var acsUrl = payment.acsUrl;
-        var payload = payment.paReq;
-        var transactionId = payment.payerAuthenticationTransactionId;
+      var payerAuthenticationRequired = payment.custom.fields.isv_payerAuthenticationRequired;
+      if (payerAuthenticationRequired) {
+        var acsUrl = payment.custom.fields.isv_payerAuthenticationAcsUrl;
+        var payload = payment.custom.fields.isv_payerAuthenticationPaReq;
+        var transactionId = payment.custom.fields.isv_payerAuthenticationTransactionId;
         // eslint-disable-next-line no-undef
         Cardinal.continue('cca',
           {
@@ -276,8 +262,9 @@ export default {
               "TransactionId": transactionId
             }
           });
+      } else {
+        this.loading = true;
       }
-      this.loading = true;
       var cybersourceContext = this;
       this.$emit("card-paid", payment.id,
         {
@@ -285,7 +272,11 @@ export default {
             cybersourceContext.loading = false;
           },
           beforeCompleteAsync: async (result) => {
-            const lastPaymentState = await payments.get(this.$store.state.payment.id);
+            if(payerAuthenticationRequired){
+              var responseJWT = await this.callCardinalValidate();
+              const paymentResponse = await payments.updatePayment(responseJWT);
+            }
+          const lastPaymentState = await payments.get(this.$store.state.payment.id);
             const serviceResponse = await payments.addTransaction(lastPaymentState);
             if (serviceResponse.error) {
               cybersourceContext.loading = false;
@@ -315,6 +306,24 @@ export default {
       );
     },
 
+    async callCardinalValidate(){
+      return new Promise(function (resolve, reject) {
+        // eslint-disable-next-line no-undef
+        Cardinal.on("payments.validated", function (data, jwt) {
+          switch (data.ErrorNumber) {
+            case 0:
+              console.log("Payment card was validated");
+              resolve(jwt);
+              break;
+
+            default:
+              alert('Payment card was not validated');
+              reject(false);
+              break;
+          }
+        });
+      });
+    },
     async setCartBillingAddress() {
       /* eslint no-underscore-dangle: ["error", { "allow": ["__vue__"] }]*/
       if (document.querySelector(".checkout-main-area").parentElement.__vue__.validBillingForm) {
@@ -373,7 +382,6 @@ export default {
           .then(function (results) {
             console.log("Response for bin.process " + JSON.stringify(results));
             if (results.Status) {
-
               var paymentCustomFields =
               {
                 type: {
@@ -467,3 +475,5 @@ export default {
   updated: function () {
   },
 };
+
+
