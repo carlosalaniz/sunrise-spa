@@ -2,12 +2,15 @@
 import jwt_decode from "jwt-decode";
 import payments from "./payments.api";
 import flexApi from "./flex.api";
+import cartApi from "./cart.api";
 import flexStyle from "./FlexMicroformStyle";
 
 const FlexSourceURL = 'https://flex.cybersource.com/cybersource/assets/microform/0.11/flex-microform.min.js';
+const VisaChktURL =
+  'https://sandbox-assets.secure.checkout.visa.com/checkout-widget/resources/js/integration/v1/sdk.js';
 const PaymentInterface = process.env.VUE_APP_CYBERSOURCE_INTEGRATION;
 const PaymentInterfaceType = process.env.VUE_APP_CYBERSOURCE_INTEGRATION_TYPE;
-
+const VisaCheckoutApiKey = process.env.VUE_APP_VISA_CHECKOUT_API_KEY;
 
 const createPaymentAsync = async function (paymentDto) {
   return await payments.create(paymentDto);
@@ -23,22 +26,20 @@ export default {
     error: null,
     loading: false,
     PaymentMethods: {
-      showing: "flexMicroform",
+      showing: "visaCheckout",
       flexMicroform: {
-        show: true,
         flexMicroFormObject: null,
         captureContext: null,
         jsLoaded: false
+      },
+      visaCheckout: {
+        jsLoaded: false,
+        visaCallId: null
       }
     },
   }),
   methods: {
     async onPaymentMethodChange(event) {
-      // hide current payment
-      const currentPayMethod = this.PaymentMethods.showing;
-      this.PaymentMethods[currentPayMethod].show = false;
-
-      //show new one
       const newPaymentMethod = event.target.value;
       await this.renderPaymentMethod(newPaymentMethod);
     },
@@ -46,14 +47,14 @@ export default {
     async renderPaymentMethod(paymentMethod) {
       switch (paymentMethod) {
         case "flexMicroform":
-          this.PaymentMethods.showing = "flexMicroform";
-          this.PaymentMethods["flexMicroform"].show = true;
           await this.renderFlex();
           break;
+        case "visaCheckout":
+          await this.renderVisaCheckout();
       }
     },
 
-    async appendFlexJS() {
+    appendFlexJS() {
       if (!this.PaymentMethods.flexMicroform.jsLoaded) {
         this.PaymentMethods.flexMicroform.jsLoaded = new Promise(function (resolve, reject) {
           const flexScript = document.createElement('script');
@@ -69,6 +70,7 @@ export default {
       }
       return this.PaymentMethods.flexMicroform.jsLoaded;
     },
+
     async renderFlex() {
       await this.appendFlexJS();
       const flexContext = await flexApi.getFlexContext();
@@ -88,6 +90,52 @@ export default {
       this.PaymentMethods.flexMicroform.verificationContext = verificationContext;
     },
 
+    appendVisaCheckoutJS() {
+      if (!this.PaymentMethods.visaCheckout.jsLoaded) {
+        this.PaymentMethods.visaCheckout.jsLoaded = new Promise(function (resolve, reject) {
+          const visaChktScript = document.createElement('script');
+          visaChktScript.setAttribute('src', VisaChktURL);
+          visaChktScript.onload = function () {
+            resolve(true);
+          };
+          visaChktScript.onerror = function (event) {
+            reject(event);
+          };
+          document.head.appendChild(visaChktScript);
+        });
+      }
+      return this.PaymentMethods.visaCheckout.jsLoaded;
+    },
+
+    async renderVisaCheckout() {
+      await this.appendVisaCheckoutJS();
+      await this.onVisaCheckoutReady();
+    },
+
+    async onVisaCheckoutReady() {
+      // V is defined through renderVisaChkt()
+      // eslint-disable-next-line no-undef
+      V.init({
+        apikey: VisaCheckoutApiKey,
+        paymentRequest: {
+          currencyCode: this.amount.currencyCode,
+          subtotal: this.amount.centAmount
+        },
+      });
+
+      // eslint-disable-next-line no-undef
+      V.on("payment.success", (payment) => {
+        this.PaymentMethods.visaCheckout.visaCallId = payment.callid;
+        this.placeOrder();
+      });
+
+      // eslint-disable-next-line no-undef
+      V.on("payment.error", (payment, error) => {
+        console.log("VisaCheckout:", payment, error);
+        this.error = JSON.stringify(error);
+        return;
+      });
+    },
 
     async placeOrder() {
       this.error = null;
@@ -106,9 +154,20 @@ export default {
       switch (currentPayMethod) {
         case "flexMicroform": {
           try {
-            const customFields = await this.prepareFlexMicroformPaymentFields();
+            const flexCustomFields = await this.prepareFlexMicroformPaymentFields();
             paymentData.paymentMethodInfo.method = 'creditCard';
-            paymentData.custom = customFields;
+            paymentData.custom = flexCustomFields;
+          } catch (e) {
+            this.error = JSON.stringify(e);
+            return;
+          }
+          break;
+        }
+        case "visaCheckout": {
+          try {
+            const VisaCheckoutCustomFields = await this.prepareVisaCheckoutPaymentFields();
+            paymentData.paymentMethodInfo.method = 'visaCheckout';
+            paymentData.custom = VisaCheckoutCustomFields;
           } catch (e) {
             this.error = JSON.stringify(e);
             return;
@@ -129,8 +188,9 @@ export default {
           onValidationError: () => {
             cybersourceContext.loading = false;
           },
-          beforeCompleteAsync: async () => {
-            const serviceResponse = await payments.addTransaction(this.$store.state.payment);
+          beforeCompleteAsync: async (result) => {
+            const lastPaymentState = await payments.get(this.$store.state.payment.id);
+            const serviceResponse = await payments.addTransaction(lastPaymentState);
             if (serviceResponse.error) {
               cybersourceContext.loading = false;
               cybersourceContext.error = "Something went wrong, try again.";
@@ -145,7 +205,12 @@ export default {
               }
               throw new Error("Something went wrong, try again.");
             }
-            return serviceResponse;
+            const updatedCart = await cartApi.get(result.data.updateMyCart.id);
+            if (updatedCart.version != result.data.updateMyCart.version) {
+              // eslint-disable-next-line no-param-reassign
+              result.data.updateMyCart = updatedCart;
+            }
+            return result;
           },
           afterComplete: () => {
             cybersourceContext.loading = false;
@@ -154,7 +219,7 @@ export default {
       );
     },
 
-    async prepareFlexMicroformPaymentFields() {
+    prepareFlexMicroformPaymentFields() {
       return new Promise((resolve, reject) => {
         var microform = this.PaymentMethods.flexMicroform.flexMicroFormObject;
         const verificationContext = this.PaymentMethods.flexMicroform.verificationContext;
@@ -189,7 +254,27 @@ export default {
           }
         });
       })
-    }
+    },
+
+    prepareVisaCheckoutPaymentFields() {
+      return new Promise((resolve, reject) => {
+        var visaChktCallId = this.PaymentMethods.visaCheckout.visaCallId;
+        try {
+          const paymentCustomFields =
+          {
+            type: {
+              key: PaymentInterfaceType
+            },
+            fields: {
+              isv_token: visaChktCallId
+            }
+          }
+          resolve(paymentCustomFields);
+        } catch (e) {
+          reject(e);
+        }
+      })
+    },
   },
 
   async mounted() {
