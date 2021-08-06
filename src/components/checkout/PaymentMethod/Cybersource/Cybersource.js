@@ -16,6 +16,8 @@ const PaymentInterface = process.env.VUE_APP_CYBERSOURCE_INTEGRATION;
 const PaymentInterfaceType = process.env.VUE_APP_CYBERSOURCE_INTEGRATION_TYPE;
 const VisaCheckoutApiKey = process.env.VUE_APP_VISA_CHECKOUT_API_KEY;
 //const PayerAuthenticationFlag = process.env.VUE_APP_USE_PAYER_AUTHENTICATION;
+/* When process.env.VUE_APP_USE_PAYER_AUTHENTICATION stored to variable, the data type changes from boolean 
+to string so need to use it directly*/
 const PayerAuthenticationFlag = true;
 const createPaymentAsync = async function (paymentDto) {
   return await payments.create(paymentDto);
@@ -45,9 +47,8 @@ export default {
       },
       payerAuthentication: {
         jsLoaded: false,
-        cardinalRequestJwt: null,
         isvToken: null,
-        generatedJWT: null
+        generatedJwt: null
       }
     },
   }),
@@ -172,8 +173,7 @@ export default {
 
     async callPayerAuthentication() {
       var jwtGeneratedToken = await jwtApi.getJWTContext();
-      this.PaymentMethods.payerAuthentication.generatedJWT = jwtGeneratedToken;
-      const context = this;
+      this.PaymentMethods.payerAuthentication.generatedJwt = jwtGeneratedToken;
       await this.appendSongBirdJS();
       return new Promise(function (resolve, reject) {
         // eslint-disable-next-line no-undef
@@ -197,6 +197,7 @@ export default {
     async placeOrder() {
       this.error = null;
       var flexData = null;
+      this.loading = true;
       let paymentData = {
         amountPlanned: {
           currencyCode: this.amount.currencyCode,
@@ -213,9 +214,9 @@ export default {
         case "flexMicroform": {
           try {
             if (PayerAuthenticationFlag) {
-              flexData = await this.getCardNumber();
+              flexData = await this.getCardDetails();
               paymentData.paymentMethodInfo.method = 'creditCardWithPayerAuthentication';
-              paymentData.custom = await this.cardinalTriggerBinProcess(flexData);
+              paymentData.custom = await this.cardinalBinProcess(flexData);
               await this.setCartBillingAddress();
             } else {
               const flexCustomFields = await this.prepareFlexMicroformPaymentFields();
@@ -246,6 +247,11 @@ export default {
       oldPayment?.id && payments.delete(oldPayment)
       const payment = await createPaymentAsync(paymentData);   
       this.$store.dispatch("setPayment", payment);
+      if(payment.errors){
+        this.loading = false;
+        this.error = payment.message;
+        return;
+      }
       var payerAuthenticationRequired = payment.custom.fields.isv_payerAuthenticationRequired;
       if (payerAuthenticationRequired) {
         var acsUrl = payment.custom.fields.isv_payerAuthenticationAcsUrl;
@@ -262,9 +268,7 @@ export default {
               "TransactionId": transactionId
             }
           });
-      } else {
-        this.loading = true;
-      }
+      } 
       var cybersourceContext = this;
       this.$emit("card-paid", payment.id,
         {
@@ -273,16 +277,34 @@ export default {
           },
           beforeCompleteAsync: async (result) => {
             if(payerAuthenticationRequired){
-              var responseJWT = await this.callCardinalValidate();
-              const paymentResponse = await payments.updatePayment(responseJWT);
-            }
-          const lastPaymentState = await payments.get(this.$store.state.payment.id);
+              cybersourceContext.loading = false;
+              var responseJwt = await this.cardinalPaymentValidate();
+              let lastPaymentState = await payments.get(this.$store.state.payment.id);
+              var data = {
+                Jwt: responseJwt,
+                id: lastPaymentState.id,
+                version: lastPaymentState.version,
+              }
+              cybersourceContext.loading = true;
+               const updateResponse = await payments.update(data);
+               if (updateResponse.error) {
+                cybersourceContext.loading = false;
+                cybersourceContext.error = "Something went wrong, try again.";
+                throw new Error(updateResponse.error);
+              }
+            } 
+            const lastPaymentState = await payments.get(this.$store.state.payment.id);
             const serviceResponse = await payments.addTransaction(lastPaymentState);
-            if (serviceResponse.error) {
+            if(serviceResponse.errors){
+              cybersourceContext.loading = false;
+              cybersourceContext.error = "Something went wrong, try again.";
+              throw new Error(serviceResponse.message);
+            }
+            /* if (serviceResponse.error) {
               cybersourceContext.loading = false;
               cybersourceContext.error = "Something went wrong, try again.";
               throw new Error(serviceResponse.error);
-            }
+            } */
             const lastTransaction = serviceResponse.transactions.pop();
             if (!lastTransaction || lastTransaction.state === "Failure") {
               cybersourceContext.loading = false;
@@ -306,7 +328,7 @@ export default {
       );
     },
 
-    async callCardinalValidate(){
+    async cardinalPaymentValidate(){
       return new Promise(function (resolve, reject) {
         // eslint-disable-next-line no-undef
         Cardinal.on("payments.validated", function (data, jwt) {
@@ -348,7 +370,7 @@ export default {
       }
     },
 
-    getCardNumber() {
+    getCardDetails() {
       return new Promise((resolve, reject) => {
         var microform = this.PaymentMethods.flexMicroform.flexMicroFormObject;
         var options = {
@@ -371,16 +393,15 @@ export default {
       })
     },
 
-    async cardinalTriggerBinProcess(flexData) {
+    async cardinalBinProcess(flexData) {
       var isvToken = this.PaymentMethods.payerAuthentication.isvToken;
       const verificationContext = this.PaymentMethods.flexMicroform.verificationContext;
-      var requestJWT = this.PaymentMethods.payerAuthentication.generatedJWT;
+      var requestJwt = this.PaymentMethods.payerAuthentication.generatedJwt;
       return new Promise((resolve, reject) => {
         var cardPrefix = cardPrefix = flexData.data.number.substring(0, 6);
         // eslint-disable-next-line no-undef
         Cardinal.trigger("bin.process", cardPrefix)
           .then(function (results) {
-            console.log("Response for bin.process " + JSON.stringify(results));
             if (results.Status) {
               var paymentCustomFields =
               {
@@ -394,7 +415,7 @@ export default {
                   isv_cardType: flexData.data.type,
                   isv_cardExpiryMonth: flexData.data.expirationMonth,
                   isv_cardExpiryYear: flexData.data.expirationYear,
-                  isv_requestJwt: requestJWT,
+                  isv_requestJwt: requestJwt,
                   isv_acceptHeader: "*/*",
                   isv_userAgentHeader:
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:69.0) Gecko/20100101 Firefox/69.0",
@@ -475,5 +496,3 @@ export default {
   updated: function () {
   },
 };
-
-

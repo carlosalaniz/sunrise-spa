@@ -51,8 +51,8 @@ const myPayments = {
         }),
       })
   ),
-  updatePayment: withToken(
-    ({ id, version, JWT }, accessToken) =>
+  update: withToken(
+    ({ id, version, Jwt }, accessToken) =>
       fetchJson(`${baseUrl}/payments/${id}`, {
         ...makeConfig(accessToken),
         method: "POST",
@@ -61,10 +61,8 @@ const myPayments = {
           actions: [
             {
               action: "setCustomField",
-              name: "isv_responseJWT",
-              value: JSON.stringify({
-                JWT
-              }),
+              name: "isv_responseJwt",
+              value: Jwt
             },
           ],
         }),
