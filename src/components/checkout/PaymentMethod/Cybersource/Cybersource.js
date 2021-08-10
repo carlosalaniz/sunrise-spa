@@ -417,8 +417,7 @@ export default {
                   isv_cardExpiryYear: flexData.data.expirationYear,
                   isv_requestJwt: requestJwt,
                   isv_acceptHeader: "*/*",
-                  isv_userAgentHeader:
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:69.0) Gecko/20100101 Firefox/69.0",
+                  isv_userAgentHeader: navigator.userAgent
                 }
               }
               resolve(paymentCustomFields);

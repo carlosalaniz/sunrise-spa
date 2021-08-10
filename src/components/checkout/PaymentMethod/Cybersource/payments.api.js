@@ -53,7 +53,7 @@ const myPayments = {
   ),
   update: withToken(
     ({ id, version, Jwt }, accessToken) =>
-      fetchJson(`${baseUrl}/payments/${id}`, {
+      fetchJson(`${baseUrl}/me/payments/${id}`, {
         ...makeConfig(accessToken),
         method: "POST",
         body: JSON.stringify({
