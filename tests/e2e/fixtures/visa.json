@@ -1,0 +1,142 @@
+[
+    {
+
+        "firstName":"John",
+        "lastName":"Doe",
+       "streetName":"1295",
+       "additionalStreetInfo":"Charleston Road",
+       "postalCode":"94043",
+       "region":"California",
+       "city":"Mountain View",
+       "phone":"None",
+       "email":"test1234@gmail.com",
+       "cardnumber":"4111111111111111",
+       "securitycode":"123",
+       "expiry":"03/24",
+       "visaemail1":"sandravisatest12@gmail.com",
+       "visaemail2":"sandravisatest15@gmail.com",
+        "visafirstname":"Sandra",
+        "visalastname":"M",
+        "visaaddress1":"1295 Charleston road",
+        "visacity":"Mountain View",
+        "visastate":"CA",
+        "visapostal":"94043",
+        "visaphone":"7025797511",
+       "products":
+        [
+            {
+                "product":"/product/a6/SKU-6",
+                "quantity":"1"
+            }
+        ]
+       
+    },
+
+    {
+        "firstName":"John",
+        "lastName":"Doe",
+       "streetName":"1295",
+       "additionalStreetInfo":"Charleston Road",
+       "postalCode":"94043",
+       "region":"California",
+       "city":"Mountain View",
+       "phone":"None",
+       "email":"test1234@gmail.com",
+       "cardnumber":"4111111111111111",
+       "securitycode":"123",
+       "expiry":"03/24",
+       "visaemail1":"sandravisatesting22@gmail.com",
+       "visaemail2":"sandravisatesting33@gmail.com",
+        "visafirstname":"Sandra",
+        "visalastname":"M",
+        "visaaddress1":"1295 Charleston road",
+        "visacity":"Mountain View",
+        "visastate":"CA",
+        "visapostal":"94043",
+        "visaphone":"7025797511",
+       "products":
+        [
+            {
+                "product":"/product/a6/SKU-6",
+                "quantity":"1"
+            },
+            {
+                "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                "quantity":"1"
+            }
+        ]      
+    },
+    {
+           "firstName":"John",
+            "lastName":"Doe",
+           "streetName":"1295",
+           "additionalStreetInfo":"Charleston Road",
+           "postalCode":"94043",
+           "region":"California",
+           "city":"Mountain View",
+           "phone":"None",
+           "email":"test1234@gmail.com",
+           "cardnumber":"4111111111111111",
+           "securitycode":"123",
+           "expiry":"03/24",
+           "visaemail1":"sandravisatesting44@gmail.com",
+           "visaemail2":"sandravisatesting55@gmail.com",
+        "visafirstname":"Sandra",
+        "visalastname":"M",
+        "visaaddress1":"1295 Charleston road",
+        "visacity":"Mountain View",
+        "visastate":"CA",
+        "visapostal":"94043",
+        "visaphone":"7025797511",
+           "products":
+            [
+                {
+                    "product":"/product/a6/SKU-6",
+                    "quantity":"2"
+                },
+                {
+                    "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                    "quantity":"3"
+                }
+            ]      
+        
+    },
+    {
+        
+            "firstName":"John",
+             "lastName":"Doe",
+            "streetName":"1295",
+            "additionalStreetInfo":"Charleston Road",
+            "postalCode":"94043",
+            "region":"California",
+            "city":"Mountain View",
+            "phone":"None",
+            "email":"test1234@gmail.com",
+            "cardnumber":"4111111111111111",
+            "securitycode":"123",
+            "expiry":"03/24",
+            "visaemail1":"sandravisatesting66@gmail.com",
+            "visaemail2":"sandravisatesting77@gmail.com",
+        "visafirstname":"Sandra",
+        "visalastname":"M",
+        "visaaddress1":"1295 Charleston road",
+        "visacity":"Mountain View",
+        "visastate":"CA",
+        "visapostal":"94043",
+        "visaphone":"7025797511",
+            "products":
+             [
+                 {
+                     "product":"/product/a6/SKU-6",
+                     "quantity":"1"
+                 },
+                 {
+                     "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                     "quantity":"3"
+                 }
+             ]      
+         
+    }
+    
+
+]

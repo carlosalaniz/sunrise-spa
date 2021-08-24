@@ -300,11 +300,6 @@ export default {
               cybersourceContext.error = "Something went wrong, try again.";
               throw new Error(serviceResponse.message);
             }
-            /* if (serviceResponse.error) {
-              cybersourceContext.loading = false;
-              cybersourceContext.error = "Something went wrong, try again.";
-              throw new Error(serviceResponse.error);
-            } */
             const lastTransaction = serviceResponse.transactions.pop();
             if (!lastTransaction || lastTransaction.state === "Failure") {
               cybersourceContext.loading = false;

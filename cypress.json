@@ -3,6 +3,7 @@
   "pluginsFile": "tests/e2e/plugins/index.js",
   "projectId": "gfk5oj",
   "graphqlTimeout": 10000,
+  "chromeWebSecurity": false,
   "reporterOptions": {
     "reporterEnabled": "spec, mocha-junit-reporter",
     "mochaJunitReporterReporterOptions": {
