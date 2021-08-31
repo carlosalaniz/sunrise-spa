@@ -18,6 +18,7 @@
           type="radio"
           value="flexMicroform"
           name="payment_method"
+          data-test="flexform"
           @change="onPaymentMethodChange($event)"
         />
         <label for="payment-method-3">Cybersource Credit Card</label>
@@ -29,6 +30,7 @@
           type="radio"
           value="visaCheckout"
           name="payment_method"
+          data-test="visaCheckout"
           @change="onPaymentMethodChange($event)"
         />
         <label for="payment-method-3">Visa checkout</label>
@@ -85,7 +87,7 @@
               </div>
             </div>
           </form>
-          <button @click="placeOrder" class="next-place-order">
+          <button @click="placeOrder" class="next-place-order" data-test="placeorder">
             {{ $t("placeOrder") }}
           </button>
         </div>
@@ -94,6 +96,7 @@
             alt="Visa Checkout"
             class="v-button"
             role="button"
+            data-test="visa-button"
             src="https://sandbox.secure.checkout.visa.com/wallet-services-web/xo/button.png"
           />
         </div>

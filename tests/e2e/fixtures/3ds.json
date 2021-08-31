@@ -1,0 +1,224 @@
+[
+    {
+
+        "firstName":"John",
+        "lastName":"Doe",
+       "streetName":"1295",
+       "additionalStreetInfo":"Charleston Road",
+       "postalCode":"94043",
+       "region":"California",
+       "city":"Mountain View",
+       "phone":"7025797511",
+       "email":"test1234@gmail.com",
+       "cardnumber":"4000000000000002",
+       "securitycode":"123",
+       "expmonth":"03",
+       "expyear":"2023",
+       "password":"1234",
+       "products":
+        [
+            {
+                "product":"/product/a6/SKU-6",
+                "quantity":"1"
+            }
+        ]
+       
+    },
+
+    {
+        "firstName":"John",
+        "lastName":"Doe",
+       "streetName":"1295",
+       "additionalStreetInfo":"Charleston Road",
+       "postalCode":"94043",
+       "region":"California",
+       "city":"Mountain View",
+       "phone":"7025797511",
+       "email":"test1234@gmail.com",
+       "cardnumber":"4000000000000002",
+       "securitycode":"123",
+       "expmonth":"03",
+       "expyear":"2023",
+       "password":"1234",
+       "products":
+        [
+            {
+                "product":"/product/a6/SKU-6",
+                "quantity":"1"
+            },
+            {
+                "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                "quantity":"1"
+            }
+        ]      
+    },
+    {
+           "firstName":"John",
+            "lastName":"Doe",
+           "streetName":"1295",
+           "additionalStreetInfo":"Charleston Road",
+           "postalCode":"94043",
+           "region":"California",
+           "city":"Mountain View",
+           "phone":"7025797511",
+           "email":"test1234@gmail.com",
+           "cardnumber":"4000000000000002",
+           "securitycode":"123",
+           "expmonth":"03",
+           "expyear":"2023",
+           "password":"1234",
+           "products":
+            [
+                {
+                    "product":"/product/a6/SKU-6",
+                    "quantity":"2"
+                },
+                {
+                    "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                    "quantity":"3"
+                }
+            ]      
+        
+    },
+    {
+        
+            "firstName":"John",
+             "lastName":"Doe",
+            "streetName":"1295",
+            "additionalStreetInfo":"Charleston Road",
+            "postalCode":"94043",
+            "region":"California",
+            "city":"Mountain View",
+            "phone":"7025797511",
+            "email":"test1234@gmail.com",
+            "cardnumber":"4000000000000002",
+            "securitycode":"123",
+            "expmonth":"03",
+            "expyear":"2023",
+            "password":"1234",
+            "products":
+             [
+                 {
+                     "product":"/product/a6/SKU-6",
+                     "quantity":"1"
+                 },
+                 {
+                     "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                     "quantity":"3"
+                 }
+             ]      
+         
+    },
+    {
+
+        "firstName":"John",
+        "lastName":"Doe",
+       "streetName":"1295",
+       "additionalStreetInfo":"Charleston Road",
+       "postalCode":"94043",
+       "region":"California",
+       "city":"Mountain View",
+       "phone":"7025797511",
+       "email":"test1234@gmail.com",
+       "cardnumber":"5200000000000007",
+       "securitycode":"123",
+       "expmonth":"03",
+       "expyear":"2023",
+       "password":"1234",
+       "products":
+        [
+            {
+                "product":"/product/a6/SKU-6",
+                "quantity":"1"
+            }
+        ]
+       
+    },
+
+    {
+        "firstName":"John",
+        "lastName":"Doe",
+       "streetName":"1295",
+       "additionalStreetInfo":"Charleston Road",
+       "postalCode":"94043",
+       "region":"California",
+       "city":"Mountain View",
+       "phone":"7025797511",
+       "email":"test1234@gmail.com",
+       "cardnumber":"5200000000000007",
+       "securitycode":"123",
+       "expmonth":"03",
+       "expyear":"2023",
+       "password":"1234",
+       "products":
+        [
+            {
+                "product":"/product/a6/SKU-6",
+                "quantity":"1"
+            },
+            {
+                "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                "quantity":"1"
+            }
+        ]      
+    },
+    {
+           "firstName":"John",
+            "lastName":"Doe",
+           "streetName":"1295",
+           "additionalStreetInfo":"Charleston Road",
+           "postalCode":"94043",
+           "region":"California",
+           "city":"Mountain View",
+           "phone":"7025797511",
+           "email":"test1234@gmail.com",
+           "cardnumber":"5200000000000007",
+           "securitycode":"123",
+           "expmonth":"03",
+           "expyear":"2023",
+           "password":"1234",
+           "products":
+            [
+                {
+                    "product":"/product/a6/SKU-6",
+                    "quantity":"2"
+                },
+                {
+                    "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                    "quantity":"3"
+                }
+            ]      
+        
+    },
+    {
+        
+            "firstName":"John",
+             "lastName":"Doe",
+            "streetName":"1295",
+            "additionalStreetInfo":"Charleston Road",
+            "postalCode":"94043",
+            "region":"California",
+            "city":"Mountain View",
+            "phone":"7025797511",
+            "email":"test1234@gmail.com",
+            "cardnumber":"5200000000000007",
+            "securitycode":"123",
+            "expmonth":"03",
+            "expyear":"2023",
+            "password":"1234",
+            "products":
+             [
+                 {
+                     "product":"/product/a6/SKU-6",
+                     "quantity":"1"
+                 },
+                 {
+                     "product":"/product/gabs-bag-sofia-large-greensd/A0E200000001WG3sd",
+                     "quantity":"3"
+                 }
+             ]      
+         
+    }
+    
+
+]
