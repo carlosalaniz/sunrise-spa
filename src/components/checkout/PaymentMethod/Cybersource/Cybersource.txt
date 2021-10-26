@@ -1,2 +1,2 @@
 en:
-  placeOrder: "PlaceOrder"
+  placeOrder: "Place Order"

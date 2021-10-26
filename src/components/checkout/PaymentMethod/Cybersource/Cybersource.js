@@ -1,16 +1,15 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-console */
 import jwt_decode from "jwt-decode";
-import payments from "./payments.api";
-import flexApi from "./flex.api";
-import cartApi from "./cart.api";
+import payments from "./Api/payments";
+import cartApi from "./Api/cart";
 import flexStyle from "./FlexMicroformStyle";
-import jwtApi from "./jwt.api";
+import jwtApi from "./Api/jwt";
 import cartMixin from "../../../../mixins/cartMixin";
 
-const FlexSourceURL = 'https://flex.cybersource.com/cybersource/assets/microform/0.11/flex-microform.min.js';
-const VisaChktURL =
-  'https://sandbox-assets.secure.checkout.visa.com/checkout-widget/resources/js/integration/v1/sdk.js';
+const FlexSourceURL = "https://flex.cybersource.com/cybersource/assets/microform/0.11/flex-microform.min.js";
+const VisaChktURL = 
+"https://sandbox-assets.secure.checkout.visa.com/checkout-widget/resources/js/integration/v1/sdk.js";
 const SongBirdURL = "https://songbirdstag.cardinalcommerce.com/edge/v1/songbird.js";
 const PaymentInterface = process.env.VUE_APP_CYBERSOURCE_INTEGRATION;
 const PaymentInterfaceType = process.env.VUE_APP_CYBERSOURCE_INTEGRATION_TYPE;
@@ -18,7 +17,7 @@ const VisaCheckoutApiKey = process.env.VUE_APP_VISA_CHECKOUT_API_KEY;
 //const PayerAuthenticationFlag = process.env.VUE_APP_USE_PAYER_AUTHENTICATION;
 /* When process.env.VUE_APP_USE_PAYER_AUTHENTICATION stored to variable, the data type changes from boolean 
 to string so need to use it directly*/
-const PayerAuthenticationFlag = true;
+const PayerAuthenticationFlag = false;
 const createPaymentAsync = async function (paymentDto) {
   return await payments.create(paymentDto);
 }
@@ -26,8 +25,6 @@ const createPaymentAsync = async function (paymentDto) {
 export default {
   props: {
     amount: Object
-  },
-  watch: {
   },
   mixins: [cartMixin],
   data: () => ({
@@ -90,21 +87,57 @@ export default {
         await this.callPayerAuthentication();
       }
       await this.appendFlexJS();
-      const flexContext = await flexApi.getFlexContext();
-      const captureContext = flexContext.captureContext;
-      const verificationContext = flexContext.verificationContext;
-      // Flex comes from flex JS on appendFlexJS()
-      // eslint-disable-next-line
-      const flexInstance = new Flex(captureContext);
-      var flexMicroform = flexInstance.microform({ styles: flexStyle });
-      flexMicroform
-        .createField('number', { placeholder: 'Enter card number' })
-        .load('#number-container-1');
-      flexMicroform
-        .createField('securityCode', { placeholder: '•••' })
-        .load('#securityCode-container');
-      this.PaymentMethods.flexMicroform.flexMicroFormObject = flexMicroform;
-      this.PaymentMethods.flexMicroform.verificationContext = verificationContext;
+      let paymentData = {
+        amountPlanned: {
+          currencyCode: this.amount.currencyCode,
+          centAmount: this.amount.centAmount
+        },
+        paymentMethodInfo: {
+          paymentInterface: PaymentInterface,
+          method: null,
+        },
+        custom: {
+          type: {
+            key: PaymentInterfaceType
+          },
+          fields: null
+        }
+      };
+      if (PayerAuthenticationFlag) {
+        paymentData.paymentMethodInfo.method = 'creditCardWithPayerAuthentication';
+        await this.setCartBillingAddress();
+      } else {
+        paymentData.paymentMethodInfo.method = 'creditCard';
+      }
+      const oldPayment = this.$store.state.payment;
+      oldPayment?.id && payments.delete(oldPayment);
+      const payment = await createPaymentAsync(paymentData); 
+      this.$store.dispatch("setPayment", payment);
+      if(payment.errors){
+        this.loading = false;
+        this.error = payment.message;
+        return;
+      }
+      if("isv_tokenCaptureContextSignature" in payment.custom.fields){
+        const captureContext = payment.custom.fields.isv_tokenCaptureContextSignature;
+        const verificationContext = payment.custom.fields.isv_tokenVerificationContext;
+        // Flex comes from flex JS on appendFlexJS()
+        // eslint-disable-next-line
+        const flexInstance = new Flex(captureContext);
+        var flexMicroform = flexInstance.microform({ styles: flexStyle });
+        flexMicroform
+          .createField('number', { placeholder: 'Enter card number' })
+          .load('#number-container-1');
+        flexMicroform
+          .createField('securityCode', { placeholder: '•••' })
+          .load('#securityCode-container');
+        this.PaymentMethods.flexMicroform.flexMicroFormObject = flexMicroform;
+        this.PaymentMethods.flexMicroform.verificationContext = verificationContext;
+      } else {
+        this.loading = false;
+        this.error = "Unable to load the form, try again.";
+        return;
+      }
     },
 
     appendVisaCheckoutJS() {
@@ -198,38 +231,66 @@ export default {
       this.error = null;
       var flexData = null;
       this.loading = true;
-      let paymentData = {
-        amountPlanned: {
-          currencyCode: this.amount.currencyCode,
-          centAmount: this.amount.centAmount
-        },
-        paymentMethodInfo: {
-          paymentInterface: PaymentInterface,
-          method: null,
-        },
-        custom: null
-      };
       const currentPayMethod = this.PaymentMethods.showing;
+      var paymentId = null;
+      
       switch (currentPayMethod) {
         case "flexMicroform": {
-          try {
-            if (PayerAuthenticationFlag) {
-              flexData = await this.getCardDetails();
-              paymentData.paymentMethodInfo.method = 'creditCardWithPayerAuthentication';
-              paymentData.custom = await this.cardinalBinProcess(flexData);
-              await this.setCartBillingAddress();
-            } else {
-              const flexCustomFields = await this.prepareFlexMicroformPaymentFields();
-              paymentData.paymentMethodInfo.method = 'creditCard';
-              paymentData.custom = flexCustomFields;
-            }
-          } catch (e) {
-            this.error = JSON.stringify(e);
-            return;
+        let lastPayment = await payments.get(this.$store.state.payment.id);
+        let flexCustomFields = {
+          id: lastPayment.id,
+          version: lastPayment.version,
+          body: null
+        }
+        try {
+          if (PayerAuthenticationFlag) {
+            flexData = await this.getCardDetails();
+            flexCustomFields.body = await this.cardinalBinProcess(flexData);
+          } else {
+            flexCustomFields.body = await this.prepareFlexMicroformPaymentFields();
           }
+          const updateResult = await payments.update(flexCustomFields);
+          if(updateResult.errors){
+              this.loading = false;
+              this.error = updateResult.message;
+              return;
+          }
+          paymentId = updateResult.id;
+          var payerAuthenticationRequired = updateResult.custom.fields.isv_payerAuthenticationRequired;
+          if (payerAuthenticationRequired) {
+            var acsUrl = updateResult.custom.fields.isv_payerAuthenticationAcsUrl;
+            var payload = updateResult.custom.fields.isv_payerAuthenticationPaReq;
+            var transactionId = updateResult.custom.fields.isv_payerAuthenticationTransactionId;
+            // eslint-disable-next-line no-undef
+            Cardinal.continue('cca',
+              {
+                "AcsUrl": acsUrl,
+                "Payload": payload
+              },
+              {
+                "OrderDetails": {
+                  "TransactionId": transactionId
+                }
+              });
+          }
+        } catch (e) {
+          this.error = JSON.stringify(e);
+          return;
+        }
           break;
         }
         case "visaCheckout": {
+          let paymentData = {
+            amountPlanned: {
+              currencyCode: this.amount.currencyCode,
+              centAmount: this.amount.centAmount
+            },
+            paymentMethodInfo: {
+              paymentInterface: PaymentInterface,
+              method: null,
+            },
+            custom: null
+          };
           try {
             const VisaCheckoutCustomFields = await this.prepareVisaCheckoutPaymentFields();
             paymentData.paymentMethodInfo.method = 'visaCheckout';
@@ -238,48 +299,31 @@ export default {
             this.error = JSON.stringify(e);
             return;
           }
+          const oldPayment = this.$store.state.payment;
+          oldPayment?.id && payments.delete(oldPayment);
+          const payment = await createPaymentAsync(paymentData);
+          paymentId = payment.id;
+          if(payment.errors){
+            this.loading = false;
+            this.error = payment.message;
+            return;
+          } 
           break;
         }
         default:
           throw new Error(currentPayMethod + " Not recognized")
       }
-      const oldPayment = this.$store.state.payment;
-      oldPayment?.id && payments.delete(oldPayment)
-      const payment = await createPaymentAsync(paymentData);   
-      this.$store.dispatch("setPayment", payment);
-      if(payment.errors){
-        this.loading = false;
-        this.error = payment.message;
-        return;
-      }
-      var payerAuthenticationRequired = payment.custom.fields.isv_payerAuthenticationRequired;
-      if (payerAuthenticationRequired) {
-        var acsUrl = payment.custom.fields.isv_payerAuthenticationAcsUrl;
-        var payload = payment.custom.fields.isv_payerAuthenticationPaReq;
-        var transactionId = payment.custom.fields.isv_payerAuthenticationTransactionId;
-        // eslint-disable-next-line no-undef
-        Cardinal.continue('cca',
-          {
-            "AcsUrl": acsUrl,
-            "Payload": payload
-          },
-          {
-            "OrderDetails": {
-              "TransactionId": transactionId
-            }
-          });
-      } 
       var cybersourceContext = this;
-      this.$emit("card-paid", payment.id,
+      this.$emit("card-paid", paymentId,
         {
           onValidationError: () => {
             cybersourceContext.loading = false;
           },
           beforeCompleteAsync: async (result) => {
-            if(payerAuthenticationRequired){
+            if(payerAuthenticationRequired) {
               cybersourceContext.loading = false;
               var responseJwt = await this.cardinalPaymentValidate();
-              let lastPaymentState = await payments.get(this.$store.state.payment.id);
+              let lastPaymentState = await payments.get(paymentId);
               var data = {
                 Jwt: responseJwt,
                 id: lastPaymentState.id,
@@ -293,20 +337,15 @@ export default {
                 throw new Error(updateResponse.error);
               }
             } 
-            const lastPaymentState = await payments.get(this.$store.state.payment.id);
+            const lastPaymentState = await payments.get(paymentId);
             const serviceResponse = await payments.addTransaction(lastPaymentState);
             if(serviceResponse.errors){
               cybersourceContext.loading = false;
               cybersourceContext.error = "Something went wrong, try again.";
               throw new Error(serviceResponse.message);
             }
-            /* if (serviceResponse.error) {
-              cybersourceContext.loading = false;
-              cybersourceContext.error = "Something went wrong, try again.";
-              throw new Error(serviceResponse.error);
-            } */
             const lastTransaction = serviceResponse.transactions.pop();
-            if (!lastTransaction || lastTransaction.state === "Failure") {
+            if (!lastTransaction || lastTransaction.state === "Failure" || lastTransaction.state === "Initial") {
               cybersourceContext.loading = false;
               cybersourceContext.error = "Something went wrong, try again.";
               if (lastTransaction) {
@@ -333,19 +372,21 @@ export default {
         // eslint-disable-next-line no-undef
         Cardinal.on("payments.validated", function (data, jwt) {
           switch (data.ErrorNumber) {
-            case 0:
+            case 0: {
               console.log("Payment card was validated");
               resolve(jwt);
               break;
-
-            default:
+            }
+            default: {
               alert('Payment card was not validated');
               reject(false);
               break;
+            }
           }
         });
       });
     },
+
     async setCartBillingAddress() {
       /* eslint no-underscore-dangle: ["error", { "allow": ["__vue__"] }]*/
       if (document.querySelector(".checkout-main-area").parentElement.__vue__.validBillingForm) {
@@ -405,12 +446,9 @@ export default {
             if (results.Status) {
               var paymentCustomFields =
               {
-                type: {
-                  key: PaymentInterfaceType
-                },
-                fields: {
+                paymentDta: {
+                  isv_updateFlag: true,
                   isv_token: isvToken,
-                  isv_tokenVerificationContext: verificationContext,
                   isv_maskedPan: flexData.data.number,
                   isv_cardType: flexData.data.type,
                   isv_cardExpiryMonth: flexData.data.expirationMonth,
@@ -419,7 +457,8 @@ export default {
                   isv_acceptHeader: "*/*",
                   isv_userAgentHeader: navigator.userAgent
                 }
-              }
+                
+              };
               resolve(paymentCustomFields);
             }
           })
@@ -447,18 +486,12 @@ export default {
               const flexData = jwt_decode(jwtToken);
               const paymentCustomFields =
               {
-                type: {
-                  key: PaymentInterfaceType
-                },
-                fields: {
                   isv_token: jwtToken,
-                  isv_tokenVerificationContext: verificationContext,
                   isv_maskedPan: flexData.data.number,
                   isv_cardType: flexData.data.type,
                   isv_cardExpiryMonth: flexData.data.expirationMonth,
-                  isv_cardExpiryYear: flexData.data.expirationYear
-                }
-              }
+                  isv_cardExpiryYear: flexData.data.expirationYear,
+              };
               resolve(paymentCustomFields);
             } catch (e) {
               reject(e);
@@ -491,7 +524,5 @@ export default {
 
   async mounted() {
     await this.renderPaymentMethod(this.PaymentMethods.showing);
-  },
-  updated: function () {
   },
 };

@@ -6,7 +6,7 @@ import {
   fetchJson,
   makeConfig,
   baseUrl,
-} from "../../../../api/api";
+} from "../../../../../api/api";
 
 const myPayments = {
   get: withToken((id, accessToken) =>
@@ -52,21 +52,42 @@ const myPayments = {
       })
   ),
   update: withToken(
-    ({ id, version, Jwt }, accessToken) =>
-      fetchJson(`${baseUrl}/me/payments/${id}`, {
-        ...makeConfig(accessToken),
-        method: "POST",
-        body: JSON.stringify({
-          version,
-          actions: [
-            {
-              action: "setCustomField",
-              name: "isv_responseJwt",
-              value: Jwt
-            },
-          ],
-        }),
-      })
+    ({ id, version, body}, accessToken) =>
+    fetchJson(`${baseUrl}/me/payments/${id}`, {
+      ...makeConfig(accessToken),
+      method: "POST",
+      body: JSON.stringify({
+        version: version,
+        actions: [
+          {
+            action: "setCustomField",
+            "name": "isv_token",
+            "value": body.isv_token
+          },
+          {
+            action: "setCustomField",
+            "name": "isv_maskedPan",
+            "value": body.isv_maskedPan
+          },
+          {
+            action: "setCustomField",
+            "name": "isv_cardType",
+            "value": body.isv_cardType
+          },
+          {
+            action: "setCustomField",
+            "name": "isv_cardExpiryMonth",
+            "value": body.isv_cardExpiryMonth
+          },
+          {
+            action: "setCustomField",
+            "name": "isv_cardExpiryYear",
+            "value": body.isv_cardExpiryYear
+          }
+        ]
+      }
+      ),
+    })  
   ),
 };
 

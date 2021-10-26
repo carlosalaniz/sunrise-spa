@@ -8,5 +8,6 @@
     "mochaJunitReporterReporterOptions": {
       "mochaFile": "test-results/e2e/output.xml"
     }
-  }
+  },
+  "chromeWebSecurity": false
 }

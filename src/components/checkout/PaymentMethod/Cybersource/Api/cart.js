@@ -6,7 +6,7 @@ import {
     fetchJson,
     makeConfig,
     baseUrl,
-} from "../../../../api/api";
+} from "../../../../../api/api";
 
 const myCart = {
     get: withToken((id, accessToken) =>
